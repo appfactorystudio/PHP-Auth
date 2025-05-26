@@ -34,6 +34,21 @@ CREATE TABLE `users_2fa` (
   UNIQUE KEY `user_id_mechanism` (`user_id`,`mechanism`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `users_audit_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned DEFAULT NULL,
+  `event_at` int unsigned NOT NULL,
+  `event_type` varchar(128) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+  `admin_id` int unsigned DEFAULT NULL,
+  `ip_address` varchar(49) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
+  `user_agent` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `details_json` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `event_at` (`event_at`),
+  KEY `user_id_event_at` (`user_id`,`event_at`),
+  KEY `user_id_event_type_event_at` (`user_id`,`event_type`,`event_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `users_confirmations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
