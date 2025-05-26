@@ -28,6 +28,20 @@ CREATE TABLE "users_2fa" (
 );
 CREATE UNIQUE INDEX "users_2fa_user_id_mechanism_uq" ON "users_2fa" ("user_id", "mechanism");
 
+CREATE TABLE "users_audit_log" (
+	"id" BIGSERIAL PRIMARY KEY,
+	"user_id" INTEGER DEFAULT NULL CHECK ("user_id" >= 0),
+	"event_at" INTEGER NOT NULL CHECK ("event_at" >= 0),
+	"event_type" VARCHAR(128) NOT NULL COLLATE "C",
+	"admin_id" INTEGER DEFAULT NULL CHECK ("admin_id" >= 0),
+	"ip_address" INET DEFAULT NULL,
+	"user_agent" TEXT DEFAULT NULL,
+	"details_json" JSONB DEFAULT NULL
+);
+CREATE INDEX "users_audit_log_event_at_ix" ON "users_audit_log" ("event_at");
+CREATE INDEX "users_audit_log_user_id_event_at_ix" ON "users_audit_log" ("user_id", "event_at");
+CREATE INDEX "users_audit_log_user_id_event_type_event_at_ix" ON "users_audit_log" ("user_id", "event_type", "event_at");
+
 CREATE TABLE "users_confirmations" (
 	"id" SERIAL PRIMARY KEY,
 	"user_id" INTEGER NOT NULL CHECK ("user_id" >= 0),
