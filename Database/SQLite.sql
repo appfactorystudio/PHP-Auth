@@ -29,6 +29,20 @@ CREATE TABLE "users_2fa" (
 	CONSTRAINT "users_2fa_user_id_mechanism_uq" UNIQUE ("user_id", "mechanism")
 );
 
+CREATE TABLE "users_audit_log" (
+	"id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"user_id" INTEGER DEFAULT NULL CHECK ("user_id" >= 0),
+	"event_at" INTEGER NOT NULL CHECK ("event_at" >= 0),
+	"event_type" TEXT NOT NULL COLLATE NOCASE CHECK (LENGTH("event_type") <= 128),
+	"admin_id" INTEGER DEFAULT NULL CHECK ("admin_id" >= 0),
+	"ip_address" TEXT DEFAULT NULL COLLATE NOCASE CHECK (LENGTH("ip_address") <= 49),
+	"user_agent" TEXT DEFAULT NULL,
+	"details_json" TEXT DEFAULT NULL
+);
+CREATE INDEX "users_audit_log_event_at_ix" ON "users_audit_log" ("event_at");
+CREATE INDEX "users_audit_log_user_id_event_at_ix" ON "users_audit_log" ("user_id", "event_at");
+CREATE INDEX "users_audit_log_user_id_event_type_event_at_ix" ON "users_audit_log" ("user_id", "event_type", "event_at");
+
 CREATE TABLE "users_confirmations" (
 	"id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 	"user_id" INTEGER NOT NULL CHECK ("user_id" >= 0),
