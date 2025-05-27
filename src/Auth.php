@@ -2974,6 +2974,40 @@ final class Auth extends UserManager {
 		return null;
 	}
 
+	/**
+	 * Records the specified event for the internal audit log
+	 *
+	 * @param string $eventType the identifier or name of the event type
+	 * @param int|null $userId (optional) the ID of the acting user, or `null` to use the currently signed-in user's ID (if available)
+	 * @param array|null $detailsArray (optional) an array with additional details about the event
+	 */
+	private function logForAudit($eventType, $userId = null, $detailsArray = null) {
+		$userId = !empty($userId) ? (int) $userId : $this->getUserId();
+		$ipAddress = !empty($this->ipAddress) ? IpAddress::mask(\trim((string) $this->ipAddress), 8, 80, true) : null;
+		$userAgent = !empty($_SERVER['HTTP_USER_AGENT']) ? \base64_encode(\hash('sha256', \trim((string) $_SERVER['HTTP_USER_AGENT']), true)) : null;
+
+		try {
+			$this->db->insert(
+				$this->makeTableNameComponents('users_audit_log'),
+				[
+					'user_id' => $userId,
+					'event_at' => \time(),
+					'event_type' => \trim((string) $eventType),
+					'admin_id' => null,
+					'ip_address' => $ipAddress,
+					'user_agent' => $userAgent,
+					'details_json' => !empty($detailsArray) ? \json_encode($detailsArray, \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES) : null,
+				]
+			);
+		}
+		catch (IntegrityConstraintViolationException $e) {
+			throw new DatabaseError($e->getMessage());
+		}
+		catch (Error $e) {
+			throw new DatabaseError($e->getMessage());
+		}
+	}
+
 	private static function sanitizeOtpValue($otpValue) {
 		$otpValue = \trim($otpValue);
 		$otpValue = \preg_replace('/[^A-Za-z0-9]/', '', $otpValue);
