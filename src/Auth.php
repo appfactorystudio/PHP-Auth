@@ -2620,8 +2620,10 @@ final class Auth extends UserManager {
 	 */
 	public function disableTwoFactorViaTotp() {
 		if ($this->isLoggedIn()) {
+			$disabled = 0;
+
 			try {
-				$this->db->exec(
+				$disabled = (int) $this->db->exec(
 					'DELETE FROM ' . $this->makeTableName('users_2fa') . ' WHERE user_id = ? AND mechanism = ? AND expires_at IS NULL',
 					[ $this->getUserId(), self::TWO_FACTOR_MECHANISM_TOTP ]
 				);
@@ -2644,8 +2646,10 @@ final class Auth extends UserManager {
 	 */
 	public function disableTwoFactorViaSms() {
 		if ($this->isLoggedIn()) {
+			$disabled = 0;
+
 			try {
-				$this->db->exec(
+				$disabled = (int) $this->db->exec(
 					'DELETE FROM ' . $this->makeTableName('users_2fa') . ' WHERE user_id = ? AND mechanism = ? AND expires_at IS NULL',
 					[ $this->getUserId(), self::TWO_FACTOR_MECHANISM_SMS ]
 				);
@@ -2668,8 +2672,10 @@ final class Auth extends UserManager {
 	 */
 	public function disableTwoFactorViaEmail() {
 		if ($this->isLoggedIn()) {
+			$disabled = 0;
+
 			try {
-				$this->db->exec(
+				$disabled = (int) $this->db->exec(
 					'DELETE FROM ' . $this->makeTableName('users_2fa') . ' WHERE user_id = ? AND mechanism = ? AND expires_at IS NULL',
 					[ $this->getUserId(), self::TWO_FACTOR_MECHANISM_EMAIL ]
 				);
@@ -2692,8 +2698,10 @@ final class Auth extends UserManager {
 	 */
 	public function disableTwoFactor() {
 		if ($this->isLoggedIn()) {
+			$disabled = 0;
+
 			try {
-				$this->db->exec(
+				$disabled = (int) $this->db->exec(
 					'DELETE FROM ' . $this->makeTableName('users_2fa') . ' WHERE user_id = ? AND expires_at IS NULL',
 					[ $this->getUserId() ]
 				);
