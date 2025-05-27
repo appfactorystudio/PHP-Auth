@@ -1845,7 +1845,9 @@ final class Auth extends UserManager {
 	public function prepareTwoFactorViaTotp($serviceName = null) {
 		$serviceName = !empty($serviceName) ? (string) $serviceName : (!empty($_SERVER['SERVER_NAME']) ? (string) $_SERVER['SERVER_NAME'] : (string) $_SERVER['SERVER_ADDR']);
 
-		return $this->prepareTwoFactor(self::TWO_FACTOR_MECHANISM_TOTP, $serviceName, null);
+		$keyUriAndSecretString = $this->prepareTwoFactor(self::TWO_FACTOR_MECHANISM_TOTP, $serviceName, null);
+
+		return $keyUriAndSecretString;
 	}
 
 	/**
@@ -2033,7 +2035,9 @@ final class Auth extends UserManager {
 	 * @throws AuthError if an internal problem occurred (do *not* catch)
 	 */
 	public function enableTwoFactorViaTotp($otpValue) {
-		return $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_TOTP, $otpValue);
+		$recoveryCodes = $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_TOTP, $otpValue);
+
+		return $recoveryCodes;
 	}
 
 	/**
@@ -2053,7 +2057,9 @@ final class Auth extends UserManager {
 	 * @throws AuthError if an internal problem occurred (do *not* catch)
 	 */
 	public function enableTwoFactorViaSms($otpValue) {
-		return $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_SMS, $otpValue);
+		$recoveryCodes = $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_SMS, $otpValue);
+
+		return $recoveryCodes;
 	}
 
 	/**
@@ -2073,7 +2079,9 @@ final class Auth extends UserManager {
 	 * @throws AuthError if an internal problem occurred (do *not* catch)
 	 */
 	public function enableTwoFactorViaEmail($otpValue) {
-		return $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_EMAIL, $otpValue);
+		$recoveryCodes = $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_EMAIL, $otpValue);
+
+		return $recoveryCodes;
 	}
 
 	/**
