@@ -836,6 +836,7 @@ final class Auth extends UserManager {
 		}
 
 		$success = false;
+		$mechanismUsed = null;
 		$performTotpVerification = true;
 
 		if (!empty($otpRecords)) {
@@ -868,6 +869,7 @@ final class Auth extends UserManager {
 
 							// remember that we have successfully verified the one-time password now
 							$success = true;
+							$mechanismUsed = (int) $otpRecord['mechanism'];
 
 							break;
 						}
@@ -915,6 +917,7 @@ final class Auth extends UserManager {
 
 						// remember that we have successfully verified the one-time password now
 						$success = true;
+						$mechanismUsed = self::TWO_FACTOR_MECHANISM_TOTP;
 					}
 				}
 			}
