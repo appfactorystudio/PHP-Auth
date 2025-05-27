@@ -234,6 +234,8 @@ final class Auth extends UserManager {
 
 		$newUserId = $this->createUserInternal(false, $email, $password, $username, $callback);
 
+		$this->logForAudit('register', $newUserId, [ 'email' => EmailAddress::mask($email), 'username' => $username ]);
+
 		$this->throttle([ 'createNewAccount', $this->getIpAddress() ], 1, (60 * 60 * 12), 5, false);
 
 		return $newUserId;
@@ -274,6 +276,8 @@ final class Auth extends UserManager {
 		$this->throttle([ 'createNewAccount', $this->getIpAddress() ], 1, (60 * 60 * 12), 5, true);
 
 		$newUserId = $this->createUserInternal(true, $email, $password, $username, $callback);
+
+		$this->logForAudit('register.withUniqueUsername', $newUserId, [ 'email' => EmailAddress::mask($email), 'username' => $username ]);
 
 		$this->throttle([ 'createNewAccount', $this->getIpAddress() ], 1, (60 * 60 * 12), 5, false);
 
@@ -371,6 +375,9 @@ final class Auth extends UserManager {
 				if (!$validated) {
 					$this->throttle([ 'reconfirmPassword', $this->getIpAddress() ], 3, (60 * 60), 4, false);
 				}
+				else {
+					$this->logForAudit('password.reconfirm');
+				}
 
 				return $validated;
 			}
@@ -402,6 +409,8 @@ final class Auth extends UserManager {
 					$rememberDirectiveSelector
 				);
 			}
+
+			$this->logForAudit('logout.local');
 
 			// remove all session variables maintained by this library
 			unset($_SESSION[self::SESSION_FIELD_LOGGED_IN]);
@@ -455,6 +464,8 @@ final class Auth extends UserManager {
 				$previousRememberDirectiveExpiry - \time()
 			);
 		}
+
+		$this->logForAudit('logout.remote');
 	}
 
 	/**
@@ -470,6 +481,9 @@ final class Auth extends UserManager {
 
 		// schedule a forced logout in all sessions
 		$this->forceLogoutForUserById($this->getUserId());
+
+		$this->logForAudit('logout.remote', $this->getUserId());
+
 		// and immediately apply the logout locally
 		$this->logOut();
 	}
@@ -691,6 +705,11 @@ final class Auth extends UserManager {
 					if ($confirmationData['old_email'] === $confirmationData['new_email']) {
 						// the output should not contain any previous email address
 						$confirmationData['old_email'] = null;
+
+						$this->logForAudit('confirmation.email.verify', $confirmationData['user_id'], [ 'email' => EmailAddress::mask($confirmationData['new_email']) ]);
+					}
+					else {
+						$this->logForAudit('email.change.finish', $confirmationData['user_id'], [ 'old' => EmailAddress::mask($confirmationData['old_email']), 'new' => EmailAddress::mask($confirmationData['new_email']) ]);
 					}
 
 					return [
@@ -741,6 +760,8 @@ final class Auth extends UserManager {
 					[ 'id', 'email', 'username', 'status', 'roles_mask', 'force_logout' ]
 				);
 
+				$this->logForAudit('login.fromConfirmation', $userData['id']);
+
 				$this->finishSingleFactorOrThrow(
 					$userData['id'], $userData['email'], $userData['username'], $userData['status'], $userData['roles_mask'], $userData['force_logout'], true, $rememberDuration
 				);
@@ -781,6 +802,8 @@ final class Auth extends UserManager {
 		if ($this->isLoggedIn()) {
 			$newPassword = self::validatePassword($newPassword, true);
 			$this->updatePasswordInternal($this->getUserId(), $newPassword);
+
+			$this->logForAudit('password.change');
 
 			try {
 				$this->logOutEverywhereElse();
@@ -934,6 +957,12 @@ final class Auth extends UserManager {
 				throw new DatabaseError($e->getMessage());
 			}
 
+			$this->logForAudit('2fa.provide', $_SESSION[self::SESSION_FIELD_AWAITING_2FA_USER_ID], [
+				'totp' => ($mechanismUsed === self::TWO_FACTOR_MECHANISM_TOTP),
+				'sms' => ($mechanismUsed === self::TWO_FACTOR_MECHANISM_SMS),
+				'email' => ($mechanismUsed === self::TWO_FACTOR_MECHANISM_EMAIL),
+			]);
+
 			if (!empty($userData)) {
 				$this->onLoginSuccessful(
 					$_SESSION[self::SESSION_FIELD_AWAITING_2FA_USER_ID], $userData['email'], $userData['username'], $userData['status'], $userData['roles_mask'], $userData['force_logout'], false
@@ -1012,6 +1041,8 @@ final class Auth extends UserManager {
 
 			$this->throttle([ 'requestEmailChange', 'userId', $this->getUserId() ], 1, (60 * 60 * 24));
 			$this->throttle([ 'requestEmailChange', $this->getIpAddress() ], 1, (60 * 60 * 24), 3);
+
+			$this->logForAudit('email.change.start', null, [ 'old' => EmailAddress::mask($this->getEmail()), 'new' => EmailAddress::mask($newEmail) ]);
 
 			$this->createConfirmationRequest($this->getUserId(), $newEmail, $callback);
 		}
@@ -1120,6 +1151,8 @@ final class Auth extends UserManager {
 				throw new DatabaseError($e->getMessage());
 			}
 
+			$this->logForAudit('username.change', null, [ 'old' => $this->getUsername(), 'new' => $newUsername ]);
+
 			// immediately update the username in the current session as well
 			$_SESSION[self::SESSION_FIELD_USERNAME] = $newUsername;
 		}
@@ -1171,6 +1204,8 @@ final class Auth extends UserManager {
 			$latestAttempt['email'],
 			$callback
 		);
+
+		$this->logForAudit('confirmation.email.resend', $latestAttempt['user_id'], [ 'email' => EmailAddress::mask($latestAttempt['email']) ]);
 	}
 
 	/**
@@ -1240,6 +1275,8 @@ final class Auth extends UserManager {
 		if ($openRequests < $maxOpenRequests) {
 			$this->throttle([ 'requestPasswordReset', $this->getIpAddress() ], 4, (60 * 60 * 24 * 7), 2);
 			$this->throttle([ 'requestPasswordReset', 'user', $userData['id'] ], 4, (60 * 60 * 24 * 7), 2);
+
+			$this->logForAudit('password.reset.start', $userData['id'], [ 'email' => EmailAddress::mask($email) ]);
 
 			$this->createPasswordResetRequest($userData['id'], $requestExpiresAfter, $callback);
 		}
@@ -1314,6 +1351,8 @@ final class Auth extends UserManager {
 					elseif ($rememberDuration === false) {
 						$rememberDuration = null;
 					}
+
+					$this->logForAudit('login', $userData['id'], [ 'email' => EmailAddress::mask($email), 'username' => $username ]);
 
 					$this->finishSingleFactorOrThrow(
 						$userData['id'], $userData['email'], $userData['username'], $userData['status'], $userData['roles_mask'], $userData['force_logout'], false, $rememberDuration
@@ -1415,6 +1454,12 @@ final class Auth extends UserManager {
 			$_SESSION[self::SESSION_FIELD_AWAITING_2FA_USER_ID] = $userId;
 			// remember the "remember me" duration that the user just requested to be kept after signing in
 			$_SESSION[self::SESSION_FIELD_AWAITING_2FA_REMEMBER_DURATION] = $rememberDuration;
+
+			$this->logForAudit('2fa.prompt', $userId, [
+				'totp' => $secondFactorRequiredException->hasTotpOption(),
+				'sms' => $secondFactorRequiredException->hasSmsOption(),
+				'email' => $secondFactorRequiredException->hasEmailOption(),
+			]);
 
 			// cancel/pause the login attempt for now
 			throw $secondFactorRequiredException;
@@ -1631,6 +1676,9 @@ final class Auth extends UserManager {
 					if ($resetData['expires'] >= \time()) {
 						$newPassword = self::validatePassword($newPassword, true);
 						$this->updatePasswordInternal($resetData['user'], $newPassword);
+
+						$this->logForAudit('password.reset.finish', $resetData['user']);
+
 						$this->forceLogoutForUserById($resetData['user']);
 
 						try {
@@ -1700,6 +1748,8 @@ final class Auth extends UserManager {
 				$idAndEmail['email'],
 				[ 'username', 'status', 'roles_mask', 'force_logout' ]
 			);
+
+			$this->logForAudit('login.fromPasswordReset', $idAndEmail['id']);
 
 			$this->finishSingleFactorOrThrow(
 				$idAndEmail['id'], $idAndEmail['email'], $userData['username'], $userData['status'], $userData['roles_mask'], $userData['force_logout'], true, $rememberDuration
@@ -1799,6 +1849,8 @@ final class Auth extends UserManager {
 			catch (Error $e) {
 				throw new DatabaseError($e->getMessage());
 			}
+
+			$this->logForAudit($enabled ? 'password.reset.enable' : 'password.reset.disable');
 		}
 		else {
 			throw new NotLoggedInException();
@@ -1850,6 +1902,8 @@ final class Auth extends UserManager {
 
 		$keyUriAndSecretString = $this->prepareTwoFactor(self::TWO_FACTOR_MECHANISM_TOTP, $serviceName, null);
 
+		$this->logForAudit('2fa.totp.enable.start');
+
 		return $keyUriAndSecretString;
 	}
 
@@ -1878,6 +1932,8 @@ final class Auth extends UserManager {
 		$this->prepareTwoFactor(self::TWO_FACTOR_MECHANISM_SMS, null, $phoneNumber);
 		$otpValue = $this->generateAndStoreRandomOneTimePassword($this->getUserId(), self::TWO_FACTOR_MECHANISM_SMS);
 
+		$this->logForAudit('2fa.sms.enable.start', null, [ 'phone' => PhoneNumber::mask($phoneNumber) ]);
+
 		return [ $phoneNumber, $otpValue ];
 	}
 
@@ -1897,6 +1953,8 @@ final class Auth extends UserManager {
 	public function prepareTwoFactorViaEmail() {
 		$this->prepareTwoFactor(self::TWO_FACTOR_MECHANISM_EMAIL, null, null);
 		$otpValue = $this->generateAndStoreRandomOneTimePassword($this->getUserId(), self::TWO_FACTOR_MECHANISM_EMAIL);
+
+		$this->logForAudit('2fa.email.enable.start', null, [ 'email' => EmailAddress::mask($this->getEmail()) ]);
 
 		return [ $this->getEmail(), $otpValue ];
 	}
@@ -2040,6 +2098,8 @@ final class Auth extends UserManager {
 	public function enableTwoFactorViaTotp($otpValue) {
 		$recoveryCodes = $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_TOTP, $otpValue);
 
+		$this->logForAudit('2fa.totp.enable.finish');
+
 		return $recoveryCodes;
 	}
 
@@ -2062,6 +2122,8 @@ final class Auth extends UserManager {
 	public function enableTwoFactorViaSms($otpValue) {
 		$recoveryCodes = $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_SMS, $otpValue);
 
+		$this->logForAudit('2fa.sms.enable.finish');
+
 		return $recoveryCodes;
 	}
 
@@ -2083,6 +2145,8 @@ final class Auth extends UserManager {
 	 */
 	public function enableTwoFactorViaEmail($otpValue) {
 		$recoveryCodes = $this->enableTwoFactor(self::TWO_FACTOR_MECHANISM_EMAIL, $otpValue);
+
+		$this->logForAudit('2fa.email.enable.finish');
 
 		return $recoveryCodes;
 	}
@@ -2642,6 +2706,10 @@ final class Auth extends UserManager {
 			catch (Error $e) {
 				throw new DatabaseError($e->getMessage());
 			}
+
+			if ($disabled > 0) {
+				$this->logForAudit('2fa.totp.disable');
+			}
 		}
 		else {
 			throw new NotLoggedInException();
@@ -2667,6 +2735,10 @@ final class Auth extends UserManager {
 			}
 			catch (Error $e) {
 				throw new DatabaseError($e->getMessage());
+			}
+
+			if ($disabled > 0) {
+				$this->logForAudit('2fa.sms.disable');
 			}
 		}
 		else {
@@ -2694,6 +2766,10 @@ final class Auth extends UserManager {
 			catch (Error $e) {
 				throw new DatabaseError($e->getMessage());
 			}
+
+			if ($disabled > 0) {
+				$this->logForAudit('2fa.email.disable');
+			}
 		}
 		else {
 			throw new NotLoggedInException();
@@ -2719,6 +2795,10 @@ final class Auth extends UserManager {
 			}
 			catch (Error $e) {
 				throw new DatabaseError($e->getMessage());
+			}
+
+			if ($disabled > 0) {
+				$this->logForAudit('2fa.disable');
 			}
 		}
 		else {
