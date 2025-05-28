@@ -47,6 +47,10 @@ Completely framework-agnostic and database-agnostic.
 
 Migrating from an earlier version of this project? See our [upgrade guide](Migration.md) for help.
 
+## Commercial support
+
+Commercial support, paid features and development services for this library are available upon request: gh@delight.im
+
 ## Usage
 
  * [Creating a new instance](#creating-a-new-instance)
