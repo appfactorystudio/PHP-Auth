@@ -1,6 +1,7 @@
 # Migration
 
  * [General](#general)
+ * [From `v8.x.x` to `v9.x.x`](#from-v8xx-to-v9xx)
  * [From `v7.x.x` to `v8.x.x`](#from-v7xx-to-v8xx)
  * [From `v6.x.x` to `v7.x.x`](#from-v6xx-to-v7xx)
  * [From `v5.x.x` to `v6.x.x`](#from-v5xx-to-v6xx)
@@ -12,6 +13,10 @@
 ## General
 
 Update your version of this library using Composer and its `composer update` or `composer require` commands [[?]](https://github.com/delight-im/Knowledge/blob/master/Composer%20(PHP).md#how-do-i-update-libraries-or-modules-within-my-application).
+
+## From `v8.x.x` to `v9.x.x`
+
+ * The database schema has changed. Create the three new tables `users_2fa`, `users_otps` and `users_audit_log` in your [MySQL](Database/MySQL.sql), [PostgreSQL](Database/PostgreSQL.sql) or [SQLite](Database/SQLite.sql) schema to update your database.
 
 ## From `v7.x.x` to `v8.x.x`
 
